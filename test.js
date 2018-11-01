@@ -5,11 +5,13 @@ const fs = require('fs');
 const util = require('util');
 const async = require('async');
 const parse = require('csv-parse');
-var csvHeaders = require('csv-headers');
+const csvHeaders = require('csv-headers');
+const jsonfile = require('jsonfile');
+const json2csv = require('json2csv').Parser;
 
 new Promise((resolve, reject) => {
     csvHeaders({
-        file      : 'CA-RETAIL--10-30.csv',
+        file      : 'CA-RETAIL.csv',
         delimiter : ','
     }, function(err, headers) {
         if (err) reject(err);
@@ -19,7 +21,7 @@ new Promise((resolve, reject) => {
 .then(context => {
 	// console.log(context);
     return new Promise((resolve, reject) => {
-		fs.createReadStream('CA-RETAIL--10-30.csv').pipe(parse({
+		fs.createReadStream('CA-RETAIL.csv').pipe(parse({
 		    delimiter: ',',
 		    columns: true,
 		    relax_column_count: true
@@ -41,7 +43,7 @@ new Promise((resolve, reject) => {
 		        // Scan second csv file for this record
 		        if(d[0] != 'License Number') {
 		        	console.log('Scanning for: ', d[0]);
-			        var r_status = is_copy(d[0]);
+			        var r_status = is_copy(d);
 			        if (r_status) new_records.push(d);
 		        }
 		        
@@ -49,12 +51,15 @@ new Promise((resolve, reject) => {
 		    err => {
 		        if (err) reject(err);
 		        else resolve(context);
+		        // console.log(new_records);
 		    });
 		}));
     });
 })
 
-function is_copy(license_number) {
+function is_copy(record) {
+	// console.log(record);
+	var license_number = record[0];
 	new Promise((resolve, reject) => {
 	    csvHeaders({
 	        file      : 'CA-RETAIL--OLD.csv',
@@ -89,13 +94,13 @@ function is_copy(license_number) {
 			        }
 
 			        if (license_number == d[0]) { // match found
-				   		// console.log('######_____________OLD RECORD_____________#####')
+				   		// console.log('###_OLD RECORD_###')
 				     //    console.log('first', license_number);
 				     //    console.log('second', d[0]);
 				     //    console.log(no_match);
 				        // match++;
 				        match_found = true;
-				        resolve({license_number, match_found});
+				        resolve({record, match_found});
 			    	} else { // no match found
 
 			    		// console.log('\nfirst', license_number);
@@ -108,7 +113,7 @@ function is_copy(license_number) {
 			    		// console.log(no_match);
 			    		if(no_match === 441) {
 			    			match_found = false;
-			    			resolve({license_number, match_found});
+			    			resolve({record, match_found});
 			    		}
 			    	}
 
@@ -123,7 +128,48 @@ function is_copy(license_number) {
 	.then(context => {
 		// console.log('\n$$IN CONTEXT$$');
 		if (!context.match_found) {
-			console.log(context)	
+			console.log(context.record);
+			var r = context.record;
+			var new_record = {
+				"License_Number": r[0],
+				"License_Designation": r[1],
+				"Second_License_Number": "",
+				"Business_Name": r[2],
+				"DBA": r[3],
+				"Record_Status": r[4],
+				"Expiration_Date": r[5],
+				"Business_Organization_Structure": r[6],
+				"City": r[7],
+				"Business_Phone": r[8],
+				"Retail_Contact": "",
+				"Address": "",
+				"State": "CA",
+				"Zip": ""
+			}
+			console.log(new_record);
+			var fields = 	['License_Number', 
+							'License_Designation',
+							'Second_License_Number',
+							'Business_Name','DBA',
+							'Record_Status','Expiration_Date',
+							'Business_Organization_Structure',
+							'City','Business_Phone',
+							'Retail_Contact','Address',
+							'State','Zip'];
+			var opts = {fields};
+
+			try {
+				var parser = new json2csv(opts);
+				var csv = parser.parse(new_record);
+
+				fs.appendFile('./data/new-record.csv', csv, function(err) {
+					if(err) console.log(err);
+					console.log('$$$DATA APPENDED$$$');
+				});
+				// console.log(csv);
+			} catch(err) {
+				console.log(err);
+			}
 		}
 	})
 }
