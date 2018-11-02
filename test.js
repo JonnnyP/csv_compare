@@ -1,5 +1,5 @@
 // Desired output semi working
-// TODO: Overall code structure, restructure promises, break promise chain, create new csv file with records missing
+// TODO: Overall code structure**, restructure promises**, break promise chain*
 
 const fs = require('fs');
 const util = require('util');
@@ -8,10 +8,15 @@ const parse = require('csv-parse');
 const csvHeaders = require('csv-headers');
 const jsonfile = require('jsonfile');
 const json2csv = require('json2csv').Parser;
+const new_file = process.argv[2] || 'error';
+const old_file = process.argv[3] || 'error';
+const output_file = process.argv[4] || 'new_records.csv';
+
+if(new_file === 'error' || old_file === 'error') throw 'Insert new file and old file names to compare';
 
 new Promise((resolve, reject) => {
     csvHeaders({
-        file      : 'CA-RETAIL.csv',
+        file      : new_file,
         delimiter : ','
     }, function(err, headers) {
         if (err) reject(err);
@@ -21,7 +26,7 @@ new Promise((resolve, reject) => {
 .then(context => {
 	// console.log(context);
     return new Promise((resolve, reject) => {
-		fs.createReadStream('CA-RETAIL.csv').pipe(parse({
+		fs.createReadStream(new_file).pipe(parse({
 		    delimiter: ',',
 		    columns: true,
 		    relax_column_count: true
@@ -62,7 +67,7 @@ function is_copy(record) {
 	var license_number = record[0];
 	new Promise((resolve, reject) => {
 	    csvHeaders({
-	        file      : 'CA-RETAIL--OLD.csv',
+	        file      : old_file,
 	        delimiter : ','
 	    }, function(err, headers) {
 	        if (err) reject(err);
@@ -70,20 +75,17 @@ function is_copy(record) {
 	    });
 	})
 	.then(context => {
-		// console.log(context);
 	    return new Promise((resolve, reject) => {
-			fs.createReadStream('CA-RETAIL--OLD.csv').pipe(parse({
+			fs.createReadStream(old_file).pipe(parse({
 			    delimiter: ',',
 			    columns: true,
 			    relax_column_count: true
 			}, (err, data) => {
 			    if (err) return reject(err);
-			    // console.log(data);
 			    var no_match = 0;
 			    // var match = 0;
 			    var match_found = false;
 			    async.each(data, (datum, next) => {
-			        // console.log(datum);
 			        var d = [];
 			        try {
 			            context.headers.forEach(hdr => {
@@ -93,24 +95,21 @@ function is_copy(record) {
 			            console.error(e.stack);
 			        }
 
-			        if (license_number == d[0]) { // match found
+			        if (license_number == d[0]) { 
+			        	// match found
 				   		// console.log('###_OLD RECORD_###')
-				     //    console.log('first', license_number);
-				     //    console.log('second', d[0]);
-				     //    console.log(no_match);
-				        // match++;
+				     	// console.log('first', license_number);
+				     	// console.log('second', d[0]);
+				     	// DOES NOT BREAK PROMISE CHAIN
+				  
 				        match_found = true;
 				        resolve({record, match_found});
-			    	} else { // no match found
-
-			    		// console.log('\nfirst', license_number);
-				    	// console.log('second', d[0]);
+			    	} else { 
+				    	// no match found
 				        no_match ++;
 			    	}
 
 			    	if (no_match > 439) {
-			    		// console.log('\n',license_number, d[0]);
-			    		// console.log(no_match);
 			    		if(no_match === 441) {
 			    			match_found = false;
 			    			resolve({record, match_found});
@@ -126,7 +125,6 @@ function is_copy(record) {
 	    });
 	})
 	.then(context => {
-		// console.log('\n$$IN CONTEXT$$');
 		if (!context.match_found) {
 			console.log(context.record);
 			var r = context.record;
@@ -144,7 +142,7 @@ function is_copy(record) {
 				"Retail_Contact": "",
 				"Address": "",
 				"State": "CA",
-				"Zip": ""
+				"Zip": "",
 			}
 			console.log(new_record);
 			var fields = 	['License_Number', 
@@ -162,9 +160,9 @@ function is_copy(record) {
 				var parser = new json2csv(opts);
 				var csv = parser.parse(new_record);
 
-				fs.appendFile('./data/new-record.csv', csv, function(err) {
+				fs.appendFile('./data/' + output_file, csv, function(err) {
 					if(err) console.log(err);
-					console.log('$$$DATA APPENDED$$$');
+					console.log('$$$Record APPENDED$$$');
 				});
 				// console.log(csv);
 			} catch(err) {
