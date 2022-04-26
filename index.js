@@ -4,72 +4,72 @@ const parse = require('csv-parse');
 const jsonfile = require('jsonfile');
 const json2csv = require('json2csv').Parser;
 
-const FILE_MISSING_DATA = process.argv[2] || 'error';
-const ORIGINAL_FILE = process.argv[3] || 'error';
-const OUTPUT_FILE = process.argv[4] || 'new_records.csv';
+const FILE_A_NAME = process.argv[2] + '.csv' || 'error';
+const FILE_B_NAME = process.argv[3] + '.csv' || 'error';
 
-if(FILE_MISSING_DATA === 'error' || ORIGINAL_FILE === 'error') throw 'Insert file names to compare';
+const RESULT_FILE_NAME = process.argv[4] || 'combined.csv';
+
+if(FILE_A_NAME === 'error' || FILE_B_NAME === 'error') throw 'Insert file names to compare';
 
 start();
 
 function start() {
 	
-	var F_M_DATA;
-	var O_F_DATA;
+	var fileAData;
+	var fileBData;
 
-	scanFile(FILE_MISSING_DATA, data => {
+	scanFile(FILE_A_NAME, dataA => {
 		
-		console.log(data.length + ' records in ' + FILE_MISSING_DATA);
-		F_M_DATA = data;
+		console.log('\n'+dataA.length + ' records in ' + FILE_A_NAME);
 
-		scanFile(ORIGINAL_FILE, data => {
+		fileAData = dataA;
+
+		scanFile(FILE_B_NAME, dataB => {
 			
-			console.log(data.length + ' records in ' + ORIGINAL_FILE);
-			O_F_DATA = data;
+			console.log(dataB.length + ' records in ' + FILE_B_NAME+'\n');
 
+			fileBData = dataB;
 
-			compareFiles(F_M_DATA, O_F_DATA);
-		})		
+			compareFiles(fileAData, fileBData);
+		})
 	})
-
 }
 
-function compareFiles(file_missing_data, original_file) {
+function compareFiles(fileAData, fileBData) {
 
+	var fileAHeaders = [];
+	var fileBHeaders = [];
 	var results = [];
 
-	for(var i = 0; i<original_file.length; i++) {
-
-		var copy = false;
-
-		for(var j = 0; j<file_missing_data.length; j++) {
-
-			if(original_file[i].Affidavit_ID === file_missing_data[j].Affidavit_ID) copy = true;
-
-			if(j === (file_missing_data.length-1) && !copy) {
-
-				results.push(original_file[i]);
-			}
-		}
+	for(field in fileAData[0]) {
+		fileAHeaders.push(field);
 	}
 
-	createCsv(results);
+	for(field in fileBData[0]) {
+		fileBHeaders.push(field);
+	}
+
+	console.log(fileAHeaders.length);
+	console.log(fileBHeaders.length);
+	// if(fileAHeaders.length > fileBHeaders.length)
+
+	// createCsv(results);
 }
 
-function createCsv(data) {
 
+function createCsv(data) {
 	try {
 		var parser = new json2csv();
 		var csv = parser.parse(data);
 
-		fs.writeFile('./data/' + OUTPUT_FILE, csv, function(err) {
+		fs.writeFile(RESULT_FILE_NAME, csv, function(err) {
 
-			if(err) console.log(err);
+			if(err) throw err;
 
 			console.log('Csv Created');
 		})
 	} catch(err) {
-		console.log(err);
+		throw err;
 	}
 }
 
